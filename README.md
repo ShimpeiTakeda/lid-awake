@@ -30,6 +30,8 @@ open 'dist/Lid Awake.app'
 
 初回に「常時起動を開始」を押すと、helper登録のためmacOSの管理者認証が1回表示されます。
 
+蓋閉じとiPhone版ChatGPT Remoteを含む実機確認は[実機検証手順](docs/VERIFICATION.md)に従います。
+
 ## アンインストール
 
 ```bash

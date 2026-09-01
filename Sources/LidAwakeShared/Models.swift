@@ -8,6 +8,7 @@ public enum AppConstants {
   public static let leaseMaxAge: TimeInterval = 30
   public static let heartbeatInterval: TimeInterval = 10
   public static let helperPollInterval: TimeInterval = 3
+  public static let helperStatusSchemaVersion = 2
 }
 
 public struct LeaseRecord: Codable, Equatable, Sendable {
@@ -68,7 +69,7 @@ public struct HelperStatus: Codable, Equatable, Sendable {
   public let detail: String?
 
   public init(
-    schemaVersion: Int = 1,
+    schemaVersion: Int = AppConstants.helperStatusSchemaVersion,
     isBlockingSleep: Bool,
     reason: BlockReason,
     acConnected: Bool,
@@ -85,6 +86,18 @@ public struct HelperStatus: Codable, Equatable, Sendable {
     self.leaseFresh = leaseFresh
     self.updatedAt = updatedAt
     self.detail = detail
+  }
+}
+
+public enum PowerSettingParser {
+  public static func sleepDisabled(fromPMSetOutput output: String) -> Bool? {
+    for line in output.split(separator: "\n") {
+      let fields = line.split(whereSeparator: { $0.isWhitespace })
+      guard fields.first == "SleepDisabled", let value = fields.last else { continue }
+      if value == "1" { return true }
+      if value == "0" { return false }
+    }
+    return nil
   }
 }
 

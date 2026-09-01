@@ -13,6 +13,7 @@ private final class HelperRuntime: @unchecked Sendable {
   private let queue = DispatchQueue(label: "com.takedashinpei.lidawake.helper.runtime")
   private var timer: DispatchSourceTimer?
   private var appliedSleepState: Bool?
+  private var transitionFailureDetail: String?
   private var isStopping = false
 
   func start() {
@@ -81,7 +82,7 @@ private final class HelperRuntime: @unchecked Sendable {
       thermalLevel: thermalLevel,
       leaseFresh: fresh,
       updatedAt: now,
-      detail: transitionSucceeded ? nil : "pmsetの更新に失敗しました"
+      detail: transitionSucceeded ? nil : transitionFailureDetail
     )
     writeStatus(status, for: user)
   }
@@ -119,24 +120,44 @@ private final class HelperRuntime: @unchecked Sendable {
   @discardableResult
   private func transition(to shouldBlock: Bool) -> Bool {
     guard appliedSleepState != shouldBlock else { return true }
-    let succeeded = applySleepBlock(shouldBlock)
-    if succeeded { appliedSleepState = shouldBlock }
-    return succeeded
+    let result = applySleepBlock(shouldBlock)
+    transitionFailureDetail = result.detail
+    // 適用または確認に失敗した状態を、直前の既知状態として扱ってはいけない。
+    // nil に戻すことで、次の安全側遷移では必ず `disablesleep 0` を再実行する。
+    appliedSleepState = result.succeeded ? shouldBlock : nil
+    return result.succeeded
   }
 
-  private func applySleepBlock(_ enabled: Bool) -> Bool {
+  private func applySleepBlock(_ enabled: Bool) -> (succeeded: Bool, detail: String?) {
     let process = Process()
+    let stderr = Pipe()
     process.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
     process.arguments = ["-a", "disablesleep", enabled ? "1" : "0"]
     process.standardOutput = FileHandle.nullDevice
-    process.standardError = FileHandle.nullDevice
+    process.standardError = stderr
     do {
       try process.run()
       process.waitUntilExit()
-      guard process.terminationStatus == 0 else { return false }
-      return readSleepBlockState() == enabled
+      let errorText = String(
+        decoding: stderr.fileHandleForReading.readDataToEndOfFile(),
+        as: UTF8.self
+      ).trimmingCharacters(in: .whitespacesAndNewlines)
+      guard process.terminationStatus == 0 else {
+        let detail =
+          errorText.isEmpty
+          ? "pmsetが終了コード\(process.terminationStatus)を返しました"
+          : "pmset: \(errorText)"
+        return (false, detail)
+      }
+      guard let observed = readSleepBlockState() else {
+        return (false, "pmset適用後のSleepDisabledを確認できませんでした")
+      }
+      guard observed == enabled else {
+        return (false, "pmset適用後のSleepDisabledが期待値と一致しませんでした")
+      }
+      return (true, nil)
     } catch {
-      return false
+      return (false, "pmsetを実行できませんでした: \(error.localizedDescription)")
     }
   }
 
@@ -144,7 +165,7 @@ private final class HelperRuntime: @unchecked Sendable {
     let process = Process()
     let stdout = Pipe()
     process.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
-    process.arguments = ["-g", "custom"]
+    process.arguments = ["-g"]
     process.standardOutput = stdout
     process.standardError = FileHandle.nullDevice
     do {
@@ -155,11 +176,7 @@ private final class HelperRuntime: @unchecked Sendable {
         decoding: stdout.fileHandleForReading.readDataToEndOfFile(),
         as: UTF8.self
       )
-      for line in output.split(separator: "\n") where line.contains("disablesleep") {
-        return line.split(whereSeparator: { $0.isWhitespace }).last == "1"
-      }
-      // pmset omits settings that are at their default value. Absence means disabled.
-      return false
+      return PowerSettingParser.sleepDisabled(fromPMSetOutput: output)
     } catch {
       return nil
     }

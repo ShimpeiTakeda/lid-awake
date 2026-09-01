@@ -77,3 +77,27 @@ struct LeasePolicyTests {
     )
   }
 }
+
+@Suite("PowerSettingParser")
+struct PowerSettingParserTests {
+  @Test("pmset -gのSleepDisabled有効値を読む")
+  func enabled() {
+    let output = """
+      System-wide power settings:
+       SleepDisabled\t\t1
+      Currently in use:
+       sleep                1
+      """
+    #expect(PowerSettingParser.sleepDisabled(fromPMSetOutput: output) == true)
+  }
+
+  @Test("pmset -gのSleepDisabled無効値を読む")
+  func disabled() {
+    #expect(PowerSettingParser.sleepDisabled(fromPMSetOutput: " SleepDisabled 0\n") == false)
+  }
+
+  @Test("SleepDisabledがなければ不明として扱う")
+  func missing() {
+    #expect(PowerSettingParser.sleepDisabled(fromPMSetOutput: " sleep 1\n") == nil)
+  }
+}

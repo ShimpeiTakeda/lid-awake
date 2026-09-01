@@ -32,8 +32,8 @@ struct ContentView: View {
         )
         readinessItem(
           title: "安全監視",
-          value: model.helperStatus == nil ? "確認中" : "稼働中",
-          status: model.helperStatus.map { _ in true }
+          value: helperReadinessValue,
+          status: helperReadinessStatus
         )
       }
 
@@ -89,7 +89,7 @@ struct ContentView: View {
 
   private var stateDescription: String {
     switch model.mode {
-    case .setupRequired: "初回のみ管理者認証が必要です。蓋を閉じるとMacは通常どおりスリープします。"
+    case .setupRequired: "安全監視の初期設定または更新に管理者認証が必要です。蓋を閉じるとMacは通常どおりスリープします。"
     case .normal: "蓋を閉じるとMacは通常どおりスリープします。"
     case .starting: "macOSのスリープ設定を確認しています。"
     case .active: "蓋を閉じてもMacとChatGPTは動作を続けます。"
@@ -132,5 +132,15 @@ struct ContentView: View {
     case .error: Color.red.opacity(0.06)
     default: Color.green.opacity(0.05)
     }
+  }
+
+  private var helperReadinessValue: String {
+    guard model.helperStatus != nil else { return "確認中" }
+    return model.helperIsReady ? "稼働中" : "更新が必要"
+  }
+
+  private var helperReadinessStatus: Bool? {
+    guard model.helperStatus != nil else { return nil }
+    return model.helperIsReady
   }
 }

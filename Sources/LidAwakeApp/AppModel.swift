@@ -18,6 +18,10 @@ final class AppModel: ObservableObject {
   @Published private(set) var helperStatus: HelperStatus?
   @Published private(set) var chatGPTIsRunning = false
 
+  var helperIsReady: Bool {
+    helperStatus?.schemaVersion == AppConstants.helperStatusSchemaVersion
+  }
+
   private var heartbeatTask: Task<Void, Never>?
   private var statusTask: Task<Void, Never>?
   private var activityToken: NSObjectProtocol?
@@ -49,7 +53,9 @@ final class AppModel: ObservableObject {
   }
 
   func start() async {
-    if !Self.helperIsInstalled || helperStatus == nil {
+    if !Self.helperIsInstalled
+      || helperStatus?.schemaVersion != AppConstants.helperStatusSchemaVersion
+    {
       do {
         try PrivilegedInstaller.install()
       } catch {
@@ -74,16 +80,23 @@ final class AppModel: ObservableObject {
       }
     }
 
-    for _ in 0..<8 {
+    var helperFailureDetail: String?
+    for _ in 0..<24 {
       refreshStatus()
       if helperStatus?.isBlockingSleep == true {
         mode = .active
         return
       }
+      if helperStatus?.reason == .helperError {
+        helperFailureDetail = helperStatus?.detail
+      }
       try? await Task.sleep(for: .milliseconds(500))
     }
     await stop()
-    mode = .error("常時起動を有効にできませんでした")
+    mode = .error(
+      helperFailureDetail.map { "常時起動を有効にできませんでした: \($0)" }
+        ?? "常時起動を有効にできませんでした"
+    )
   }
 
   func stop() async {
@@ -140,6 +153,17 @@ final class AppModel: ObservableObject {
       return
     }
     helperStatus = status
+    if status.schemaVersion != AppConstants.helperStatusSchemaVersion {
+      switch mode {
+      case .active, .starting:
+        mode = .error("安全監視helperの更新が必要です")
+      case .setupRequired:
+        break
+      case .normal, .safetyStopped, .error:
+        mode = .setupRequired
+      }
+      return
+    }
     if mode == .active, !status.isBlockingSleep {
       let message: String =
         switch status.reason {

@@ -23,6 +23,7 @@
 - UI表示の正本はhelperの`status.json`です。
 - 常時起動要求の正本はアプリが更新する`lease.json`です。
 - 実際のスリープ阻止の正本はmacOSの`pmset`です。
+- 適用確認は`pmset -g`の`SleepDisabled`を読みます。`pmset -g custom`にはこの値が出ないため使用しません。
 - UIのローカルなboolだけで「常時起動中」を名乗りません。
 
 ## Failure mode
@@ -36,6 +37,7 @@
 | helper再起動 | 起動直後に解除してからfresh leaseを再評価 |
 | Mac再起動 | 過去のleaseはowner不在で拒否し、通常モード |
 | status stale | UIは赤表示を継続せずエラー表示 |
+| `pmset`適用・確認失敗 | 状態を不明に戻し、次の安全側遷移で必ず`disablesleep 0`を再実行 |
 
 ## Non-goals
 
