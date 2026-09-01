@@ -15,6 +15,7 @@
    - rootのLaunchDaemonです。
    - lease、owner PID、AC、thermal stateを3秒ごとに評価します。
    - 状態遷移時だけ`pmset -a disablesleep 1|0`を実行します。
+   - `pmset`は5秒でtimeoutし、適用後の実状態が一致した場合だけ遷移成功とします。
 3. `LidAwakeShared`
    - lease、status、純粋な安全判定を所有します。
 
@@ -38,11 +39,27 @@
 | Mac再起動 | 過去のleaseはowner不在で拒否し、通常モード |
 | status stale | UIは赤表示を継続せずエラー表示 |
 | `pmset`適用・確認失敗 | 状態を不明に戻し、次の安全側遷移で必ず`disablesleep 0`を再実行 |
+| `pmset`が5秒以内に終了しない | processを終了し、適用失敗として上と同じ安全側遷移へ移る |
+
+## Privileged install
+
+GUIは管理者認証を要求する前にbundle内のhelperとLaunchDaemon plistのSHA-256を計算します。root shellは
+両fileをroot所有の`/var/tmp/lid-awake-install.*`へstageし、digest一致後にだけ既存helperを停止して
+`/Library`配下を更新します。source pathからsystem pathへ直接copyしません。stagingは成功・失敗・signalの
+いずれでも個別fileを削除してdirectoryを除去します。
+
+これはuser writableなsourceが認証後に差し替えられるTOCTOUを縮小しますが、Appleの正式な
+`SMAppService`とcode-signing requirementによるcaller認証の代替ではありません。配布binaryを出す前の
+残作業は[release checklist](RELEASE_CHECKLIST.md)を正本とします。
+
+helperの安全契約を変えたreleaseではstatus schemaを更新します。旧helperのstatusを新appが受理せず、次回開始時に
+管理者認証を伴う再installへ進めるためです。
 
 ## Non-goals
 
 - Wi-FiやOpenAIサービスの可用性保証
 - FileVaultログインの自動化
 - App Store配布
+- Developer ID署名・notarize前のbinary配布
 - 自動ログインや画面ロックの回避
 - バッテリー駆動での蓋閉じ常時起動

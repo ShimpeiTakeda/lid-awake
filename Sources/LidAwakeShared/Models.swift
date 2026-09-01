@@ -8,7 +8,8 @@ public enum AppConstants {
   public static let leaseMaxAge: TimeInterval = 30
   public static let heartbeatInterval: TimeInterval = 10
   public static let helperPollInterval: TimeInterval = 3
-  public static let helperStatusSchemaVersion = 2
+  public static let commandTimeout: TimeInterval = 5
+  public static let helperStatusSchemaVersion = 3
 }
 
 public struct LeaseRecord: Codable, Equatable, Sendable {
@@ -141,5 +142,30 @@ public enum LeasePolicy {
     guard input.acConnected else { return .batteryPower }
     guard !input.thermalLevel.isUnsafe else { return .thermalPressure }
     return .active
+  }
+}
+
+public enum LeaseFreshness {
+  public static func isFresh(updatedAt: Date, now: Date) -> Bool {
+    let age = now.timeIntervalSince(updatedAt)
+    return age >= 0 && age <= AppConstants.leaseMaxAge
+  }
+}
+
+/// helperが最後に確認できた`SleepDisabled`の状態を追跡します。
+/// 適用または確認に失敗した場合は状態を不明に戻し、安全側への再試行を省略しません。
+public struct SleepTransitionTracker: Equatable, Sendable {
+  public private(set) var appliedState: Bool?
+
+  public init(appliedState: Bool? = nil) {
+    self.appliedState = appliedState
+  }
+
+  public func requiresTransition(to desiredState: Bool) -> Bool {
+    appliedState != desiredState
+  }
+
+  public mutating func record(desiredState: Bool, succeeded: Bool) {
+    appliedState = succeeded ? desiredState : nil
   }
 }

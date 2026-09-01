@@ -12,7 +12,7 @@ private struct ConsoleUser {
 private final class HelperRuntime: @unchecked Sendable {
   private let queue = DispatchQueue(label: "com.takedashinpei.lidawake.helper.runtime")
   private var timer: DispatchSourceTimer?
-  private var appliedSleepState: Bool?
+  private var transitionTracker = SleepTransitionTracker()
   private var transitionFailureDetail: String?
   private var isStopping = false
 
@@ -73,10 +73,10 @@ private final class HelperRuntime: @unchecked Sendable {
     let shouldBlock = reason == .active
     let transitionSucceeded = transition(to: shouldBlock)
     let finalReason: BlockReason = transitionSucceeded ? reason : .helperError
-    let fresh =
-      lease.map { now.timeIntervalSince($0.updatedAt) <= AppConstants.leaseMaxAge } ?? false
+    let fresh = lease.map { LeaseFreshness.isFresh(updatedAt: $0.updatedAt, now: now) } ?? false
     let status = HelperStatus(
-      isBlockingSleep: transitionSucceeded ? shouldBlock : (appliedSleepState ?? false),
+      isBlockingSleep: transitionSucceeded
+        ? shouldBlock : (transitionTracker.appliedState ?? false),
       reason: finalReason,
       acConnected: acConnected,
       thermalLevel: thermalLevel,
@@ -119,33 +119,25 @@ private final class HelperRuntime: @unchecked Sendable {
 
   @discardableResult
   private func transition(to shouldBlock: Bool) -> Bool {
-    guard appliedSleepState != shouldBlock else { return true }
+    guard transitionTracker.requiresTransition(to: shouldBlock) else { return true }
     let result = applySleepBlock(shouldBlock)
     transitionFailureDetail = result.detail
-    // 適用または確認に失敗した状態を、直前の既知状態として扱ってはいけない。
-    // nil に戻すことで、次の安全側遷移では必ず `disablesleep 0` を再実行する。
-    appliedSleepState = result.succeeded ? shouldBlock : nil
+    transitionTracker.record(desiredState: shouldBlock, succeeded: result.succeeded)
     return result.succeeded
   }
 
   private func applySleepBlock(_ enabled: Bool) -> (succeeded: Bool, detail: String?) {
-    let process = Process()
-    let stderr = Pipe()
-    process.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
-    process.arguments = ["-a", "disablesleep", enabled ? "1" : "0"]
-    process.standardOutput = FileHandle.nullDevice
-    process.standardError = stderr
     do {
-      try process.run()
-      process.waitUntilExit()
-      let errorText = String(
-        decoding: stderr.fileHandleForReading.readDataToEndOfFile(),
-        as: UTF8.self
-      ).trimmingCharacters(in: .whitespacesAndNewlines)
-      guard process.terminationStatus == 0 else {
+      let result = try SynchronousProcessRunner.run(
+        executable: "/usr/bin/pmset",
+        arguments: ["-a", "disablesleep", enabled ? "1" : "0"],
+        timeout: AppConstants.commandTimeout
+      )
+      let errorText = result.standardError.trimmingCharacters(in: .whitespacesAndNewlines)
+      guard result.terminationStatus == 0 else {
         let detail =
           errorText.isEmpty
-          ? "pmsetが終了コード\(process.terminationStatus)を返しました"
+          ? "pmsetが終了コード\(result.terminationStatus)を返しました"
           : "pmset: \(errorText)"
         return (false, detail)
       }
@@ -162,21 +154,14 @@ private final class HelperRuntime: @unchecked Sendable {
   }
 
   private func readSleepBlockState() -> Bool? {
-    let process = Process()
-    let stdout = Pipe()
-    process.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
-    process.arguments = ["-g"]
-    process.standardOutput = stdout
-    process.standardError = FileHandle.nullDevice
     do {
-      try process.run()
-      process.waitUntilExit()
-      guard process.terminationStatus == 0 else { return nil }
-      let output = String(
-        decoding: stdout.fileHandleForReading.readDataToEndOfFile(),
-        as: UTF8.self
+      let result = try SynchronousProcessRunner.run(
+        executable: "/usr/bin/pmset",
+        arguments: ["-g"],
+        timeout: AppConstants.commandTimeout
       )
-      return PowerSettingParser.sleepDisabled(fromPMSetOutput: output)
+      guard result.terminationStatus == 0 else { return nil }
+      return PowerSettingParser.sleepDisabled(fromPMSetOutput: result.standardOutput)
     } catch {
       return nil
     }

@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import LidAwakeShared
 
@@ -25,16 +26,12 @@ enum PrivilegedInstaller {
       throw InstallerError.resourceMissing("\(AppConstants.helperLabel).plist")
     }
 
-    let command = [
-      "/bin/launchctl bootout system/\(AppConstants.helperLabel) >/dev/null 2>&1 || true",
-      "/usr/bin/pmset -a disablesleep 0",
-      "/usr/bin/install -d -o root -g wheel -m 755 /Library/PrivilegedHelperTools",
-      "/usr/bin/install -o root -g wheel -m 755 \(shellQuote(helper.path)) \(shellQuote(AppConstants.helperInstallPath))",
-      "/usr/bin/install -o root -g wheel -m 644 \(shellQuote(plist.path)) \(shellQuote(AppConstants.helperPlistInstallPath))",
-      "/bin/launchctl bootstrap system \(shellQuote(AppConstants.helperPlistInstallPath))",
-      "/bin/launchctl enable system/\(AppConstants.helperLabel)",
-      "/bin/launchctl kickstart -k system/\(AppConstants.helperLabel)",
-    ].joined(separator: " && ")
+    let command = try PrivilegedInstallCommand(
+      helperSourcePath: helper.path,
+      plistSourcePath: plist.path,
+      helperSHA256: try sha256(of: helper),
+      plistSHA256: try sha256(of: plist)
+    ).render()
     try runAsAdministrator(command)
   }
 
@@ -60,7 +57,8 @@ enum PrivilegedInstaller {
     }
   }
 
-  private static func shellQuote(_ value: String) -> String {
-    "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
+  private static func sha256(of url: URL) throws -> String {
+    let digest = SHA256.hash(data: try Data(contentsOf: url))
+    return digest.map { String(format: "%02x", $0) }.joined()
   }
 }

@@ -28,8 +28,8 @@ plutil -insert CFBundleInfoDictionaryVersion -string 6.0 "$app_dir/Contents/Info
 plutil -insert CFBundleName -string 'Lid Awake' "$app_dir/Contents/Info.plist"
 plutil -insert CFBundleDisplayName -string 'Lid Awake' "$app_dir/Contents/Info.plist"
 plutil -insert CFBundlePackageType -string APPL "$app_dir/Contents/Info.plist"
-plutil -insert CFBundleShortVersionString -string 0.1.1 "$app_dir/Contents/Info.plist"
-plutil -insert CFBundleVersion -string 2 "$app_dir/Contents/Info.plist"
+plutil -insert CFBundleShortVersionString -string 0.2.0 "$app_dir/Contents/Info.plist"
+plutil -insert CFBundleVersion -string 3 "$app_dir/Contents/Info.plist"
 plutil -insert LSMinimumSystemVersion -string 14.0 "$app_dir/Contents/Info.plist"
 plutil -insert NSHighResolutionCapable -bool true "$app_dir/Contents/Info.plist"
 
