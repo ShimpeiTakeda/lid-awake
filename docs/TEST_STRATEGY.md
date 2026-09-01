@@ -11,7 +11,7 @@ Tests prioritize reliable release when conditions fail, not only successful acti
 | Policy | Lease presence, schema, enabled flag, time boundaries, PID, path, AC power, thermal state, precedence | An unsafe input returns `.active` |
 | Transition | Unknown startup state, successful state, retry after apply failure | A safe release is skipped after failure |
 | Parser | `pmset -g` values 0 and 1, missing key, invalid value, similar key | Actual state is misidentified |
-| File | JSON round trip, `0700`/`0600`, atomic replacement, malformed JSON | Permissions weaken, a temporary file remains, or malformed state is accepted |
+| File | JSON round trip, `0700`/`0600`, atomic replacement, malformed JSON, symlink rejection, privileged directory ownership, 64 KiB bound | Permissions weaken, an unsafe path is followed, a temporary file remains, or malformed or oversized state is accepted |
 | Process | stdout, stderr, exit status, large output, timeout, invalid timeout | The helper thread can block indefinitely |
 | Installer | Path quoting, digest validation, root-staging order, shell syntax | A system path changes before artifact verification |
 | Localization | Identical key sets, placeholders, app references, English fallback, fixed-window label budgets | Missing copy, fallback drift, or probable truncation |

@@ -12,10 +12,10 @@
 - [x] Audit publishable files for secret patterns, local artifacts, and files larger than 1 MiB
 - [x] Make English the canonical repository and fallback app language
 - [x] Keep complete, key-matched English and Japanese app resources
-- [ ] Owner reviews the private repository source diff
-- [ ] Owner reviews the final GitHub presentation and settings immediately before publication
+- [x] Maintainer reviews the private repository source diff and publishable file inventory
+- [x] Maintainer approves the final GitHub presentation and source-only publication settings
 
-The final two items are intentionally open for owner review. The repository must remain private until they are complete.
+All source publication gates are complete. Binary distribution remains independently blocked below.
 
 ## Binary release gate
 

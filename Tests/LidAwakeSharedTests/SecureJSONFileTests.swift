@@ -77,6 +77,69 @@ struct SecureJSONFileTests {
     #expect(decoded == value)
   }
 
+  @Test("A privileged write requires an existing private directory owned by the target user")
+  func privilegedWriteDirectoryBoundary() throws {
+    let root = try temporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let missingFile = root.appendingPathComponent("missing/status.json")
+    let owner = (getuid(), getgid())
+
+    #expect(throws: (any Error).self) {
+      try SecureJSONFile.write(status(reason: .active), to: missingFile, owner: owner)
+    }
+
+    let directory = root.appendingPathComponent("existing", isDirectory: true)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: directory.path)
+    let file = directory.appendingPathComponent("status.json")
+
+    #expect(throws: (any Error).self) {
+      try SecureJSONFile.write(status(reason: .active), to: file, owner: owner)
+    }
+
+    try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
+    try SecureJSONFile.write(status(reason: .active), to: file, owner: owner)
+    #expect(try permissions(of: file) == 0o600)
+  }
+
+  @Test("Write refuses a symlinked destination directory")
+  func symlinkedDirectory() throws {
+    let root = try temporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let destination = root.appendingPathComponent("destination", isDirectory: true)
+    let link = root.appendingPathComponent("link", isDirectory: true)
+    try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: false)
+    try FileManager.default.createSymbolicLink(at: link, withDestinationURL: destination)
+
+    #expect(throws: (any Error).self) {
+      try SecureJSONFile.write(
+        status(reason: .active), to: link.appendingPathComponent("status.json"))
+    }
+    #expect(
+      !FileManager.default.fileExists(
+        atPath: destination.appendingPathComponent("status.json").path))
+  }
+
+  @Test("Read refuses symlinks and oversized files")
+  func unsafeReadInputs() throws {
+    let root = try temporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let realFile = root.appendingPathComponent("real.json")
+    let link = root.appendingPathComponent("link.json")
+    try JSONEncoder.lidAwake.encode(status(reason: .active)).write(to: realFile)
+    try FileManager.default.createSymbolicLink(at: link, withDestinationURL: realFile)
+
+    #expect(throws: (any Error).self) {
+      try SecureJSONFile.read(HelperStatus.self, from: link)
+    }
+
+    let oversized = root.appendingPathComponent("oversized.json")
+    try Data(repeating: 0x20, count: 65_537).write(to: oversized)
+    #expect(throws: (any Error).self) {
+      try SecureJSONFile.read(HelperStatus.self, from: oversized)
+    }
+  }
+
   private func temporaryDirectory() throws -> URL {
     let url = FileManager.default.temporaryDirectory
       .appendingPathComponent("lid-awake-tests-\(UUID().uuidString)", isDirectory: true)

@@ -23,6 +23,8 @@ Lid Awake provides a single-window, one-button control for keeping a MacBook run
 
 - `status.json`, written by the helper, is the source of truth for the GUI state.
 - `lease.json`, refreshed by the GUI, is the source of truth for the user's active request.
+- Both files use descriptor-based, symlink-rejecting I/O. The root helper writes only inside an
+  existing user-owned directory with no group or other access.
 - macOS `pmset` is the source of truth for actual sleep blocking.
 - Verification reads `SleepDisabled` from `pmset -g`. `pmset -g custom` is not used because it does not expose that value.
 - A GUI-local Boolean is never sufficient to claim that Keep Awake mode is active.

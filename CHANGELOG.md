@@ -4,6 +4,12 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Security
+
+- Hardened lease and status I/O against symlink and path-replacement attacks.
+- Restricted privileged status writes to an existing user-owned private directory.
+- Bounded lease and status reads to regular files no larger than 64 KiB.
+
 ### Added
 
 - Made English the fallback and canonical project language.

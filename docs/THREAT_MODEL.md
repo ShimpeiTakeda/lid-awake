@@ -31,6 +31,8 @@ Lid Awake blocks closed-lid sleep only while a logged-in user explicitly enables
 | Shell injection | POSIX path quoting, lowercase-hex digest validation, fixed commands | AppleScript shell elevation remains a complex boundary |
 | `pmset` hangs | Five-second timeout, then TERM and KILL if required | As with a helper crash, the last OS setting may remain |
 | Forged lease | Regular-file, owner UID, `0600`, schema, freshness, PID, and path checks | A process that already controls the same user account cannot be fully excluded |
+| Root helper follows a user-controlled status path | The helper requires an existing user-owned private directory, rejects symlinks, and uses descriptor-relative `openat` / `renameat` writes | The logged-in user controls status contents, which the helper never trusts as input |
+| Symlink or oversized JSON input | `O_NOFOLLOW`, regular-file checks, and a 64 KiB read limit | A same-user process can still cause the UI to reject status and show a safe inactive state |
 | Fake binary distribution | Do not distribute an official binary yet | A user may trust an unrelated third-party binary |
 | Translation changes a safety instruction | English fallback, exact key and placeholder parity, label budgets, English canonical docs | A semantically poor translation can still pass structural tests |
 
