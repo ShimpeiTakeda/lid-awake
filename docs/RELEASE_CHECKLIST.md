@@ -1,28 +1,30 @@
-# Release checklist
+# Release Checklist
 
-## Source repository公開gate
+## Source repository publication gate
 
-- [x] MIT Licenseを明示する
-- [x] READMEへ目的、権限、安全条件、制約、build、uninstallを記載する
-- [x] SECURITY、CONTRIBUTING、Code of Conduct、Changelogを用意する
-- [x] 脅威モデルと残余リスクを公開する
-- [x] CIを最小権限・固定commitのactionで実行する
-- [x] safety policyの全分岐、境界値、file permission、timeout、installer commandをtestする
-- [x] build後のbundle ID、plist、code signature、格納物を監査する
-- [x] tracked fileのsecret pattern、local artifact、大容量fileを監査する
-- [ ] ownerがprivate repositoryのsource diffをreviewする
-- [ ] 公開直前のGitHub設定と表示をreviewする
+- [x] Declare the MIT License
+- [x] Document purpose, privileges, safety conditions, limitations, build, and uninstall steps
+- [x] Provide a Security Policy, contribution guide, Code of Conduct, and changelog
+- [x] Publish the threat model and residual risks
+- [x] Run CI with minimal workflow permissions and a commit-pinned action
+- [x] Test every safety-policy branch, boundary time, file permission, timeout, and installer command
+- [x] Audit the built bundle ID, plists, code signature, localization resources, and exact file inventory
+- [x] Audit publishable files for secret patterns, local artifacts, and files larger than 1 MiB
+- [x] Make English the canonical repository and fallback app language
+- [x] Keep complete, key-matched English and Japanese app resources
+- [ ] Owner reviews the private repository source diff
+- [ ] Owner reviews the final GitHub presentation and settings immediately before publication
 
-上の未完了2項目はowner reviewのため意図的に残しています。owner review前にpublicへ変更しません。
+The final two items are intentionally open for owner review. The repository must remain private until they are complete.
 
 ## Binary release gate
 
-- [ ] Apple Developer Programの配布用identityを用意する
-- [ ] Developer ID Applicationでappとhelperを署名する
-- [ ] hardened runtimeと必要最小限のentitlementを確定する
-- [ ] Apple notarizationとticket staplingを行う
-- [ ] cleanなsupported macOS環境でinstall、更新、uninstallを検証する
-- [ ] AC切断、app kill、helper restart、thermal safety stopを配布buildで実測する
-- [ ] checksumと署名検証手順をrelease noteへ記載する
+- [ ] Provision an Apple Developer Program distribution identity
+- [ ] Sign the app and helper with Developer ID Application
+- [ ] Finalize hardened runtime and minimum entitlements
+- [ ] Complete Apple notarization and staple the ticket
+- [ ] Test install, update, and uninstall on a clean supported macOS environment
+- [ ] Verify power disconnect, app kill, helper restart, and thermal safety stop with the distribution build
+- [ ] Document checksums and signature verification in the release notes
 
-全項目が完了するまでGitHub Releaseへ実行バイナリを添付しません。ad-hoc署名buildはlocal development専用です。
+No executable may be attached to a GitHub Release until every binary gate passes. Ad-hoc signatures are for local development only.

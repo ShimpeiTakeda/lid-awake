@@ -21,17 +21,21 @@ struct ContentView: View {
 
       HStack(spacing: 18) {
         readinessItem(
-          title: "電源",
-          value: model.helperStatus.map { $0.acConnected ? "接続中" : "未接続" } ?? "確認中",
+          title: L10n.text("readiness.power.title"),
+          value: model.helperStatus.map {
+            $0.acConnected
+              ? L10n.text("readiness.connected") : L10n.text("readiness.disconnected")
+          } ?? L10n.text("readiness.checking"),
           status: model.helperStatus.map { $0.acConnected }
         )
         readinessItem(
           title: "ChatGPT",
-          value: model.chatGPTIsRunning ? "起動中" : "停止中",
+          value: model.chatGPTIsRunning
+            ? L10n.text("readiness.running") : L10n.text("readiness.not_running"),
           status: model.chatGPTIsRunning
         )
         readinessItem(
-          title: "安全監視",
+          title: L10n.text("readiness.safety_monitor.title"),
           value: helperReadinessValue,
           status: helperReadinessStatus
         )
@@ -52,7 +56,7 @@ struct ContentView: View {
       .disabled(model.mode == .starting)
       .opacity(model.mode == .starting ? 0.65 : 1)
 
-      Text("アプリを終了すると30秒以内に通常モードへ戻ります")
+      Text(L10n.text("footer.exit_recovery"))
         .font(.caption)
         .foregroundStyle(.secondary)
     }
@@ -79,29 +83,29 @@ struct ContentView: View {
 
   private var stateTitle: String {
     switch model.mode {
-    case .setupRequired, .normal: "通常モード"
-    case .starting: "切り替え中"
-    case .active: "常時起動中"
-    case .safetyStopped: "安全停止しました"
-    case .error: "エラー"
+    case .setupRequired, .normal: L10n.text("status.title.normal")
+    case .starting: L10n.text("status.title.starting")
+    case .active: L10n.text("status.title.active")
+    case .safetyStopped: L10n.text("status.title.safety_stopped")
+    case .error: L10n.text("status.title.error")
     }
   }
 
   private var stateDescription: String {
     switch model.mode {
-    case .setupRequired: "安全監視の初期設定または更新に管理者認証が必要です。蓋を閉じるとMacは通常どおりスリープします。"
-    case .normal: "蓋を閉じるとMacは通常どおりスリープします。"
-    case .starting: "macOSのスリープ設定を確認しています。"
-    case .active: "蓋を閉じてもMacとChatGPTは動作を続けます。"
+    case .setupRequired: L10n.text("status.description.setup_required")
+    case .normal: L10n.text("status.description.normal")
+    case .starting: L10n.text("status.description.starting")
+    case .active: L10n.text("status.description.active")
     case .safetyStopped(let message), .error(let message): message
     }
   }
 
   private var buttonTitle: String {
     switch model.mode {
-    case .active, .starting: "通常モードに戻す"
-    case .setupRequired: "初期設定して常時起動を開始"
-    case .normal, .safetyStopped, .error: "常時起動を開始"
+    case .active, .starting: L10n.text("button.stop")
+    case .setupRequired: L10n.text("button.setup_and_start")
+    case .normal, .safetyStopped, .error: L10n.text("button.start")
     }
   }
 
@@ -135,8 +139,9 @@ struct ContentView: View {
   }
 
   private var helperReadinessValue: String {
-    guard model.helperStatus != nil else { return "確認中" }
-    return model.helperIsReady ? "稼働中" : "更新が必要"
+    guard model.helperStatus != nil else { return L10n.text("readiness.checking") }
+    return model.helperIsReady
+      ? L10n.text("readiness.running") : L10n.text("readiness.update_required")
   }
 
   private var helperReadinessStatus: Bool? {

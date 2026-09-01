@@ -20,9 +20,9 @@ public enum ProcessRunnerError: LocalizedError, Equatable {
   public var errorDescription: String? {
     switch self {
     case .invalidTimeout:
-      "process timeoutは0秒より大きい値が必要です"
+      "Process timeout must be greater than zero"
     case .timedOut(let executable, let seconds):
-      "\(executable)が\(seconds)秒以内に終了しませんでした"
+      "\(executable) did not exit within \(seconds) seconds"
     }
   }
 }

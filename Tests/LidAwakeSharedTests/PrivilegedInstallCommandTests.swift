@@ -4,7 +4,7 @@ import Testing
 
 @Suite("POSIXShell")
 struct POSIXShellTests {
-  @Test("空白とsingle quoteをshell wordとしてquoteする")
+  @Test("Quotes spaces and single quotes as one shell word")
   func quote() {
     #expect(POSIXShell.quote("/tmp/Lid Awake.app") == "'/tmp/Lid Awake.app'")
     #expect(POSIXShell.quote("a'b") == "'a'\\''b'")
@@ -15,7 +15,7 @@ struct POSIXShellTests {
 struct PrivilegedInstallCommandTests {
   private let digest = String(repeating: "a", count: 64)
 
-  @Test("root stagingでdigest検証後にだけsystem pathを更新する")
+  @Test("Changes system paths only after digest verification in root staging")
   func verifiedStagingOrder() throws {
     let command = try makeCommand().render()
     let stageRange = try #require(command.range(of: "mktemp -d"))
@@ -30,7 +30,7 @@ struct PrivilegedInstallCommandTests {
     #expect(command.contains("pmset -a disablesleep 0"))
   }
 
-  @Test("source pathをcommand injectionできない形でquoteする")
+  @Test("Quotes source paths against command injection")
   func quotesSourcePaths() throws {
     let command = try PrivilegedInstallCommand(
       helperSourcePath: "/tmp/a'; touch /tmp/pwned; echo '",
@@ -42,7 +42,7 @@ struct PrivilegedInstallCommandTests {
     #expect(command.contains(POSIXShell.quote("/tmp/Lid Awake/helper.plist")))
   }
 
-  @Test("生成commandがmacOSのPOSIX shellとして構文解析できる")
+  @Test("Renders a command accepted by the macOS POSIX shell parser")
   func shellSyntax() throws {
     let command = try makeCommand().render()
     let result = try SynchronousProcessRunner.run(
@@ -54,7 +54,7 @@ struct PrivilegedInstallCommandTests {
     #expect(result.standardError.isEmpty)
   }
 
-  @Test("SHA-256以外の値をcommandへ埋め込まない")
+  @Test("Rejects a non-SHA-256 value before command rendering")
   func rejectsInvalidDigest() {
     #expect(throws: PrivilegedInstallCommand.ValidationError.invalidSHA256) {
       try PrivilegedInstallCommand(

@@ -1,40 +1,39 @@
-# Test strategy
+# Test Strategy
 
-## 原則
+## Principle
 
-testは「開始できる」だけでなく「条件を失ったら確実に解除へ向かう」を主対象にします。rootの実system設定を
-CIで変更しません。純粋policy、file system、subprocess、build artifact、実機journeyを層別化します。
+Tests prioritize reliable release when conditions fail, not only successful activation. CI never changes the root system sleep setting. Pure policy, file-system behavior, subprocess behavior, localization, build artifacts, and physical-device journeys are separate evidence layers.
 
-## 自動test
+## Automated tests
 
-| Layer | 対象 | Hard fail |
+| Layer | Coverage | Hard failure |
 |---|---|---|
-| Policy | lease有無、schema、enabled、時刻境界、PID、path、AC、thermal、優先順位 | 不安全な条件で`.active`になる |
-| Transition | 起動時不明状態、成功state、適用失敗後の再試行 | 失敗後に解除遷移を省略する |
-| Parser | `pmset -g`の0/1、欠落、不正値、類似key | 実状態を誤認する |
-| File | JSON round trip、0700/0600、atomic replace、malformed JSON | 権限緩和、一時file残留、壊れた状態の受理 |
-| Process | stdout/stderr/exit、pipe容量超過、timeout、invalid timeout | helper threadが無期限停止する |
-| Installer | path quote、digest validation、root staging順序、shell syntax | 検証前にsystem pathを変更する |
-| Artifact | bundle ID、minimum OS、helper plist、code signature、格納file | 想定外file、識別子不一致、署名破損 |
-| Source | format、shell syntax、secret pattern、local artifact、1 MiB超file | 非公開情報や生成物を公開対象へ含める |
+| Policy | Lease presence, schema, enabled flag, time boundaries, PID, path, AC power, thermal state, precedence | An unsafe input returns `.active` |
+| Transition | Unknown startup state, successful state, retry after apply failure | A safe release is skipped after failure |
+| Parser | `pmset -g` values 0 and 1, missing key, invalid value, similar key | Actual state is misidentified |
+| File | JSON round trip, `0700`/`0600`, atomic replacement, malformed JSON | Permissions weaken, a temporary file remains, or malformed state is accepted |
+| Process | stdout, stderr, exit status, large output, timeout, invalid timeout | The helper thread can block indefinitely |
+| Installer | Path quoting, digest validation, root-staging order, shell syntax | A system path changes before artifact verification |
+| Localization | Identical key sets, placeholders, app references, English fallback, fixed-window label budgets | Missing copy, fallback drift, or probable truncation |
+| Artifact | Bundle ID, minimum OS, language inventory, helper plist, code signature, exact file inventory | Identifier mismatch, missing language, unexpected file, or broken signature |
+| Source | Formatting, shell syntax, secret patterns, local artifacts, files over 1 MiB, canonical-language boundary | Private data, generated output, or noncanonical project text enters publication scope |
 
-canonical commandは次です。
+The canonical command is:
 
 ```bash
 ./scripts/check.sh
 ```
 
-## 実機test
+## Physical-device tests
 
-root helperと実際の蓋閉じ挙動は[実機検証手順](VERIFICATION.md)で確認します。実測はcommitに紐づけ、別commitへ
-流用しません。特に次はCIの代替になりません。
+Use the [physical-device verification procedure](VERIFICATION.md) for the root helper and closed-lid behavior. Evidence belongs to the exact tested commit and cannot be carried forward. CI does not replace:
 
-- 管理者認証を含むfresh installとupdate
-- AC切断、app kill、helper restart
-- 蓋を閉じた状態の別networkからのChatGPT Remote
-- signed/notarized distribution buildのGatekeeper検証
+- fresh install and update with administrator approval
+- external-power disconnect, app kill, and helper restart
+- ChatGPT Remote from an iPhone on a separate network while the lid is closed
+- Gatekeeper verification of a signed and notarized distribution build
+- visual inspection in both English and Japanese
 
-## Coverageの解釈
+## Interpreting coverage
 
-line coverageの数値だけを品質gateにしません。root権限境界とfailure modeは、分岐がtestまたは実機手順のどちらに
-属するかを明示します。未検証の実機項目をunit test成功でcoveredと呼びません。
+Line coverage alone is not the quality gate. Every root privilege boundary and failure mode must identify whether automated or physical-device evidence covers it. Passing unit tests never upgrades an unperformed physical-device scenario to covered.

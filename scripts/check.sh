@@ -9,6 +9,8 @@ for script in scripts/*.sh; do
 done
 swift format lint --recursive --strict Sources Tests Package.swift
 swift test
+./scripts/audit-localizations.sh
+./scripts/audit-canonical-language.sh
 ./scripts/build-app.sh
 ./scripts/audit-app.sh
 ./scripts/audit-source.sh

@@ -5,7 +5,7 @@ import Testing
 
 @Suite("SynchronousProcessRunner")
 struct ProcessRunnerTests {
-  @Test("stdoutとstderrと終了コードを保持する")
+  @Test("Captures stdout, stderr, and exit status")
   func capturesResult() throws {
     let result = try SynchronousProcessRunner.run(
       executable: "/bin/sh",
@@ -17,7 +17,7 @@ struct ProcessRunnerTests {
     #expect(result.standardError == "error")
   }
 
-  @Test("pipe容量を超える出力でも停止しない")
+  @Test("Does not block when output exceeds pipe capacity")
   func capturesLargeOutput() throws {
     let result = try SynchronousProcessRunner.run(
       executable: "/bin/sh",
@@ -28,7 +28,7 @@ struct ProcessRunnerTests {
     #expect(result.standardOutput.utf8.count == 200_000)
   }
 
-  @Test("timeoutしたprocessを終了して失敗を返す")
+  @Test("Terminates a timed-out process and reports failure")
   func timesOut() {
     #expect(throws: ProcessRunnerError.self) {
       try SynchronousProcessRunner.run(
@@ -39,7 +39,7 @@ struct ProcessRunnerTests {
     }
   }
 
-  @Test("0以下のtimeoutを拒否する")
+  @Test("Rejects a nonpositive timeout")
   func invalidTimeout() {
     #expect(throws: ProcessRunnerError.invalidTimeout) {
       try SynchronousProcessRunner.run(

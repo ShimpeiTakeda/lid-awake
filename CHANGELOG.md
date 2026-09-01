@@ -1,25 +1,31 @@
 # Changelog
 
-このprojectは[Semantic Versioning](https://semver.org/)に従います。
+This project follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
+
+### Added
+
+- Made English the fallback and canonical project language.
+- Added complete English and Japanese app localization resources.
+- Added tests for localization key completeness, format placeholders, app references, and fixed-width label budgets.
 
 ## 0.2.0 - 2026-09-01
 
 ### Security
 
-- privileged helperをroot所有の一時領域へstageし、SHA-256検証後にだけsystem pathへinstallするようにしました。
-- `pmset`の実行に5秒のtimeoutを設け、停止したprocessを終了してfail-safeへ移るようにしました。
+- Staged the privileged helper in a root-owned temporary directory and verified its SHA-256 before changing system paths.
+- Added a five-second `pmset` timeout and fail-safe termination.
 
 ### Tests
 
-- leaseの全拒否条件、境界時刻、failure precedenceを検証します。
-- sleep状態遷移、secure JSON file、process timeout、installer command injection耐性を検証します。
+- Covered every lease rejection branch, time boundary, and failure precedence rule.
+- Added sleep-transition, secure-file, process-timeout, and installer-injection tests.
 
 ## 0.1.1 - 2026-09-01
 
-- `pmset`適用後の`SleepDisabled`を確認し、確認失敗時に安全側遷移を再試行するようにしました。
+- Verified `SleepDisabled` after each `pmset` change and forced a safe retry after verification failure.
 
 ## 0.1.0 - 2026-09-01
 
-- AC接続中に限る蓋閉じ常時起動、30秒lease、thermal safety stopを実装しました。
+- Added AC-only closed-lid operation, a 30-second lease, and thermal safety stops.

@@ -1,39 +1,41 @@
-# Behavior contract
+# Behavior Contract
 
-この文書はrefactorやsecurity hardeningで変えてはいけない利用者向け挙動を固定します。変更する場合は、code変更より
-先にIssueとこの文書を更新し、変更理由とmigrationを合意します。
+This document fixes the user-visible behavior that refactoring, localization, and security hardening must preserve. A behavior change requires an agreed issue and an update to this document before code changes.
 
 ## Main journey
 
-1. ユーザーがLid Awakeをdouble clickすると、単一windowと大きなbuttonが表示されます。
-2. 通常時は緑の「通常モード」で、蓋を閉じるとmacOS標準どおりsleepします。
-3. AC接続中にbuttonを押すと、初回だけ管理者認証を経て開始します。
-4. helperが`SleepDisabled 1`を確認した後だけ、赤の「常時起動中」を表示します。
-5. もう一度buttonを押すと`SleepDisabled 0`を確認し、緑の「通常モード」へ戻ります。
-6. app終了時はdisabled leaseを書き、30秒以内に通常モードへ戻ります。
+1. Double-clicking Lid Awake opens one window with one large action button.
+2. The default green **Normal Mode** uses standard macOS sleep behavior when the lid closes.
+3. Pressing the button while external power is connected starts the mode; first-time setup or a helper update requests administrator approval.
+4. The red **Keeping Mac Awake** state appears only after the helper verifies `SleepDisabled 1`.
+5. Pressing the button again verifies `SleepDisabled 0` before returning to green **Normal Mode**.
+6. Quitting writes a disabled lease and returns to Normal Mode within 30 seconds.
+
+The app follows the macOS language preference. Unsupported languages fall back to English. English and Japanese present the same states and actions without changing the safety policy.
 
 ## Safety journey
 
-| 条件 | 利用者に見える結果 | helperの結果 |
+| Condition | User-visible result | Helper result |
 |---|---|---|
-| AC未接続で開始 | 黄の安全停止、接続要求 | sleepを阻止しない |
-| 常時起動中にAC切断 | 黄の安全停止 | 3秒周期で`disablesleep 0` |
-| thermal state serious/critical | 黄の安全停止 | 3秒周期で`disablesleep 0` |
-| app crash/kill | appは消える | lease expiry後30秒以内に解除 |
-| helper statusが10秒超stale | 赤を維持せずerror | 実状態は名乗らない |
-| `pmset`失敗・timeout・確認不一致 | error | 状態を不明にし、解除を再試行 |
-| Mac再起動 | 自動で常時起動しない | startup時に解除後、stale leaseを拒否 |
+| Start without external power | Amber Safety Stop with a power instruction | Do not block sleep |
+| External power disconnect while active | Amber Safety Stop | Run `disablesleep 0` within the polling interval |
+| `serious` or `critical` thermal state | Amber Safety Stop | Run `disablesleep 0` within the polling interval |
+| App crash or force quit | The app disappears | Release after lease expiry, within 30 seconds |
+| Helper status is stale for more than 10 seconds | Replace the red state with an error | Do not claim an observed state |
+| `pmset` failure, timeout, or verification mismatch | Show an error | Mark state unknown and retry a safe release |
+| Mac restart | Do not restore Keep Awake mode | Release on startup, then reject the stale lease |
 
 ## Accessibility contract
 
-- 色だけで状態を表現せず、状態名、説明、iconを併記します。
-- buttonのlabelだけで実行結果が分かる文言を使います。
-- 常時起動の成功を押下直後のlocal stateで推測せず、helperの実状態確認後に表示します。
+- State names, descriptions, and icons accompany color.
+- Button labels describe the resulting action.
+- The app never infers success from a button press; it waits for verified helper state.
+- Primary English and Japanese labels must remain within the fixed-window length budgets tested in CI.
 
 ## Non-goals
 
-- Wi-Fi、internet、OpenAI、ChatGPT/Codexの可用性保証
-- battery駆動での蓋閉じ常時起動
-- 自動ログイン、画面ロック、FileVaultの迂回
-- reboot後の自動復元
-- network通信、telemetry、自動更新
+- Wi-Fi, internet, OpenAI, or ChatGPT/Codex availability guarantees
+- Closed-lid operation on battery power
+- Automatic login, lock-screen bypass, or FileVault bypass
+- Automatic restoration after restart
+- Network access, telemetry, or automatic updates

@@ -1,53 +1,59 @@
-# 実機検証手順
+# Physical-Device Verification
 
-## 目的
+## Purpose
 
-蓋を閉じたMacBook上でChatGPTが動作を続け、別ネットワークのiPhoneからRemoteを利用できることと、終了時に通常のスリープ設定へ戻ることを検証します。
+Verify that ChatGPT continues running on a closed-lid MacBook, that ChatGPT Remote works from an iPhone on a separate network, and that stopping Lid Awake restores normal sleep behavior.
 
-## 前提条件
+## Preconditions
 
-- MacBookを電源へ接続します。
-- MacとiPhoneを同じChatGPTアカウントおよびworkspaceへ接続します。
-- MacでChatGPTとLid Awakeを起動します。
-- Macを机など放熱できる場所へ置きます。鞄、布団、ソファでは実行しません。
+- Connect the MacBook to external power.
+- Sign in to the same ChatGPT account and workspace on the Mac and iPhone.
+- Start ChatGPT and Lid Awake on the Mac.
+- Place the Mac on a desk or another ventilated surface. Never run this test in a bag, on bedding, or on a sofa.
 
-## 常時起動の確認
+## Keep Awake verification
 
-1. Lid Awakeで「常時起動を開始」を押します。
-2. 画面が赤い「常時起動中」になり、電源・ChatGPT・安全監視がすべて正常表示になることを確認します。
-3. Macで次を実行し、`SleepDisabled 1`を確認します。
-
-   ```bash
-   pmset -g | grep SleepDisabled
-   ```
-
-4. MacBookの蓋を完全に閉じ、2分待ちます。
-5. iPhoneのWi-Fiを切り、4Gまたは5Gへ切り替えます。
-6. ChatGPTモバイルアプリのRemoteから対象Macを選び、既存threadへの送信または新規threadの開始が成功することを確認します。
-
-## 安全解除の確認
-
-1. 蓋を開き、Lid Awakeの「通常モードに戻す」を押すか、アプリを終了します。
-2. 30秒以内に次の出力が`SleepDisabled 0`になることを確認します。
+1. Press **Keep Mac Awake** in Lid Awake.
+2. Confirm the red **Keeping Mac Awake** state and healthy Power, ChatGPT, and Safety Monitor indicators.
+3. Run the following command and verify `SleepDisabled 1`:
 
    ```bash
    pmset -g | grep SleepDisabled
    ```
 
-## Hard failと復旧
+4. Close the MacBook lid completely and wait two minutes.
+5. Disable Wi-Fi on the iPhone and switch to 4G or 5G.
+6. Select the Mac in ChatGPT Remote and confirm that sending to an existing thread or starting a new thread succeeds.
 
-- Lid Awakeがエラーを表示した場合、蓋を閉じません。
-- `SleepDisabled 1`のまま通常モードへ戻らない場合は、次を実行して管理者認証を行います。
+## Safe release verification
+
+1. Open the lid and press **Return to Normal Mode**, or quit Lid Awake.
+2. Within 30 seconds, verify `SleepDisabled 0`:
+
+   ```bash
+   pmset -g | grep SleepDisabled
+   ```
+
+## Localization verification
+
+Repeat the open-lid UI journey in English and Japanese. Verify the state title, description, button, three readiness cards, safety stop, setup failure, and helper failure. Do not switch languages or relaunch the app during an active Remote session unless interruption is acceptable.
+
+## Hard failures and recovery
+
+- Do not close the lid when Lid Awake displays an error.
+- If Normal Mode does not restore and `SleepDisabled` remains `1`, run the following command and approve administrator access:
 
   ```bash
   sudo pmset -a disablesleep 0
   ```
 
-- AC切断、`thermalState`が`serious`または`critical`、helper応答停止のいずれかを検出した場合は検証を中止します。
-- 1回の接続成功は基本機能の確認です。旅行中の連続利用を判断する場合は、同じ条件で一晩以上の試験を別途行います。
+- Stop the test after an external-power disconnect, a `serious` or `critical` thermal state, or loss of helper status.
+- One successful connection proves the basic path only. Run an overnight test under the same conditions before relying on continuous travel access.
 
-## 2026-09-01 実測
+## Historical evidence: 2026-09-01
 
-- 蓋を閉じて2分後、iPhoneをWi-Fiから4Gへ切り替えた状態でChatGPT Remoteの操作に成功しました。
-- 検証後のMac側は`SleepDisabled 1`、helper statusは`schemaVersion 2`、`reason active`、`isBlockingSleep true`、thermal stateは`nominal`でした。
-- アプリ正常終了後に`SleepDisabled 0`へ戻ることも確認しました。
+- ChatGPT Remote succeeded after the lid had been closed for two minutes and the iPhone switched from Wi-Fi to 4G.
+- The Mac then reported `SleepDisabled 1`; helper status reported schema 2, reason `active`, `isBlockingSleep true`, and thermal state `nominal`.
+- Normal app termination restored `SleepDisabled 0`.
+
+This evidence predates the localization commit and cannot verify the localized build.

@@ -13,6 +13,7 @@ private final class HelperRuntime: @unchecked Sendable {
   private let queue = DispatchQueue(label: "com.takedashinpei.lidawake.helper.runtime")
   private var timer: DispatchSourceTimer?
   private var transitionTracker = SleepTransitionTracker()
+  private var transitionFailure: HelperFailure?
   private var transitionFailureDetail: String?
   private var isStopping = false
 
@@ -82,6 +83,7 @@ private final class HelperRuntime: @unchecked Sendable {
       thermalLevel: thermalLevel,
       leaseFresh: fresh,
       updatedAt: now,
+      failure: transitionSucceeded ? nil : transitionFailure,
       detail: transitionSucceeded ? nil : transitionFailureDetail
     )
     writeStatus(status, for: user)
@@ -121,12 +123,17 @@ private final class HelperRuntime: @unchecked Sendable {
   private func transition(to shouldBlock: Bool) -> Bool {
     guard transitionTracker.requiresTransition(to: shouldBlock) else { return true }
     let result = applySleepBlock(shouldBlock)
+    transitionFailure = result.failure
     transitionFailureDetail = result.detail
     transitionTracker.record(desiredState: shouldBlock, succeeded: result.succeeded)
     return result.succeeded
   }
 
-  private func applySleepBlock(_ enabled: Bool) -> (succeeded: Bool, detail: String?) {
+  private func applySleepBlock(_ enabled: Bool) -> (
+    succeeded: Bool,
+    failure: HelperFailure?,
+    detail: String?
+  ) {
     do {
       let result = try SynchronousProcessRunner.run(
         executable: "/usr/bin/pmset",
@@ -137,19 +144,41 @@ private final class HelperRuntime: @unchecked Sendable {
       guard result.terminationStatus == 0 else {
         let detail =
           errorText.isEmpty
-          ? "pmsetが終了コード\(result.terminationStatus)を返しました"
+          ? "pmset returned exit status \(result.terminationStatus)"
           : "pmset: \(errorText)"
-        return (false, detail)
+        return (
+          false,
+          HelperFailure(code: .commandFailed, exitStatus: result.terminationStatus),
+          detail
+        )
       }
       guard let observed = readSleepBlockState() else {
-        return (false, "pmset適用後のSleepDisabledを確認できませんでした")
+        return (
+          false,
+          HelperFailure(code: .stateUnreadable),
+          "Could not read SleepDisabled after applying the pmset change"
+        )
       }
       guard observed == enabled else {
-        return (false, "pmset適用後のSleepDisabledが期待値と一致しませんでした")
+        return (
+          false,
+          HelperFailure(code: .stateMismatch),
+          "SleepDisabled did not match the requested state after pmset completed"
+        )
       }
-      return (true, nil)
+      return (true, nil, nil)
+    } catch ProcessRunnerError.timedOut {
+      return (
+        false,
+        HelperFailure(code: .commandTimedOut),
+        "pmset did not exit within \(AppConstants.commandTimeout) seconds"
+      )
     } catch {
-      return (false, "pmsetを実行できませんでした: \(error.localizedDescription)")
+      return (
+        false,
+        HelperFailure(code: .executionFailed),
+        "Could not run pmset: \(error.localizedDescription)"
+      )
     }
   }
 

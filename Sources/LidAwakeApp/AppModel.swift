@@ -59,13 +59,13 @@ final class AppModel: ObservableObject {
       do {
         try PrivilegedInstaller.install()
       } catch {
-        mode = .error("初期設定に失敗しました: \(error.localizedDescription)")
+        mode = .error(L10n.format("error.setup_failed_format", error.localizedDescription))
         return
       }
     }
 
     guard Self.isACConnected() else {
-      mode = .safetyStopped("電源アダプタを接続してください")
+      mode = .safetyStopped(L10n.text("safety.connect_power"))
       return
     }
 
@@ -80,7 +80,7 @@ final class AppModel: ObservableObject {
       }
     }
 
-    var helperFailureDetail: String?
+    var helperFailure: HelperFailure?
     for _ in 0..<24 {
       refreshStatus()
       if helperStatus?.isBlockingSleep == true {
@@ -88,14 +88,16 @@ final class AppModel: ObservableObject {
         return
       }
       if helperStatus?.reason == .helperError {
-        helperFailureDetail = helperStatus?.detail
+        helperFailure = helperStatus?.failure
       }
       try? await Task.sleep(for: .milliseconds(500))
     }
     await stop()
     mode = .error(
-      helperFailureDetail.map { "常時起動を有効にできませんでした: \($0)" }
-        ?? "常時起動を有効にできませんでした"
+      localizedHelperFailure(helperFailure).map {
+        L10n.format("error.enable_failed_detail_format", $0)
+      }
+        ?? L10n.text("error.enable_failed")
     )
   }
 
@@ -112,7 +114,7 @@ final class AppModel: ObservableObject {
       }
       try? await Task.sleep(for: .milliseconds(500))
     }
-    mode = .error("通常モードへの復帰確認に失敗しました")
+    mode = .error(L10n.text("error.normal_mode_confirmation"))
   }
 
   nonisolated func disableLeaseImmediately() {
@@ -135,7 +137,7 @@ final class AppModel: ObservableObject {
     do {
       try SecureJSONFile.write(lease, to: leaseURL)
     } catch {
-      mode = .error("状態ファイルを保存できません: \(error.localizedDescription)")
+      mode = .error(L10n.format("error.state_file_write_format", error.localizedDescription))
     }
   }
 
@@ -148,7 +150,7 @@ final class AppModel: ObservableObject {
     else {
       helperStatus = nil
       if mode == .active {
-        mode = .error("安全監視helperから応答がありません")
+        mode = .error(L10n.text("error.helper_unresponsive"))
       }
       return
     }
@@ -156,7 +158,7 @@ final class AppModel: ObservableObject {
     if status.schemaVersion != AppConstants.helperStatusSchemaVersion {
       switch mode {
       case .active, .starting:
-        mode = .error("安全監視helperの更新が必要です")
+        mode = .error(L10n.text("error.helper_update_required"))
       case .setupRequired:
         break
       case .normal, .safetyStopped, .error:
@@ -167,9 +169,9 @@ final class AppModel: ObservableObject {
     if mode == .active, !status.isBlockingSleep {
       let message: String =
         switch status.reason {
-        case .batteryPower: "電源が外れたため安全停止しました"
-        case .thermalPressure: "Macの熱状態が高いため安全停止しました"
-        default: "安全条件を満たさなくなったため停止しました"
+        case .batteryPower: L10n.text("safety.power_disconnected")
+        case .thermalPressure: L10n.text("safety.thermal_pressure")
+        default: L10n.text("safety.conditions_failed")
         }
       heartbeatTask?.cancel()
       heartbeatTask = nil
@@ -182,8 +184,27 @@ final class AppModel: ObservableObject {
     guard activityToken == nil else { return }
     activityToken = ProcessInfo.processInfo.beginActivity(
       options: [.userInitiated, .idleSystemSleepDisabled],
-      reason: "Lid Awakeの安全leaseを更新するため"
+      reason: L10n.text("activity.lease_heartbeat")
     )
+  }
+
+  private func localizedHelperFailure(_ failure: HelperFailure?) -> String? {
+    guard let failure else { return nil }
+    switch failure.code {
+    case .commandFailed:
+      guard let exitStatus = failure.exitStatus else {
+        return L10n.text("helper_error.pmset_execution_failed")
+      }
+      return L10n.format("helper_error.pmset_exit_status_format", exitStatus)
+    case .commandTimedOut:
+      return L10n.text("helper_error.pmset_timed_out")
+    case .stateUnreadable:
+      return L10n.text("helper_error.pmset_state_unreadable")
+    case .stateMismatch:
+      return L10n.text("helper_error.pmset_state_mismatch")
+    case .executionFailed:
+      return L10n.text("helper_error.pmset_execution_failed")
+    }
   }
 
   private func endActivity() {

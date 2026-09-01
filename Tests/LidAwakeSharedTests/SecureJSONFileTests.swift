@@ -6,7 +6,7 @@ import Testing
 
 @Suite("SecureJSONFile")
 struct SecureJSONFileTests {
-  @Test("directoryを0700、fileを0600で作成してround tripする")
+  @Test("Creates a 0700 directory and 0600 file and round-trips JSON")
   func permissionsAndRoundTrip() throws {
     let root = try temporaryDirectory()
     defer { try? FileManager.default.removeItem(at: root) }
@@ -25,7 +25,7 @@ struct SecureJSONFileTests {
     #expect(try SecureJSONFile.read(LeaseRecord.self, from: file) == lease)
   }
 
-  @Test("既存fileをatomicに置換し一時fileを残さない")
+  @Test("Atomically replaces an existing file without leaving a temporary file")
   func replacement() throws {
     let root = try temporaryDirectory()
     defer { try? FileManager.default.removeItem(at: root) }
@@ -41,7 +41,7 @@ struct SecureJSONFileTests {
     #expect(names == ["status.json"])
   }
 
-  @Test("壊れたJSONを成功として読まない")
+  @Test("Rejects malformed JSON")
   func malformedJSON() throws {
     let root = try temporaryDirectory()
     defer { try? FileManager.default.removeItem(at: root) }
@@ -51,6 +51,30 @@ struct SecureJSONFileTests {
     #expect(throws: (any Error).self) {
       try SecureJSONFile.read(LeaseRecord.self, from: file)
     }
+  }
+
+  @Test("Round-trips a structured helper failure without relying on display text")
+  func helperFailureRoundTrip() throws {
+    let root = try temporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let file = root.appendingPathComponent("status.json")
+    let failure = HelperFailure(code: .commandFailed, exitStatus: 7)
+    let value = HelperStatus(
+      isBlockingSleep: false,
+      reason: .helperError,
+      acConnected: true,
+      thermalLevel: .nominal,
+      leaseFresh: true,
+      updatedAt: Date(timeIntervalSince1970: 1_000),
+      failure: failure,
+      detail: "pmset returned exit status 7"
+    )
+
+    try SecureJSONFile.write(value, to: file)
+
+    let decoded = try SecureJSONFile.read(HelperStatus.self, from: file)
+    #expect(decoded.failure == failure)
+    #expect(decoded == value)
   }
 
   private func temporaryDirectory() throws -> URL {

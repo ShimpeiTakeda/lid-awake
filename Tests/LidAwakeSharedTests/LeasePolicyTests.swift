@@ -7,22 +7,22 @@ import Testing
 struct LeasePolicyTests {
   private let now = Date(timeIntervalSince1970: 1_000)
 
-  @Test("有効なleaseと安全条件で常時起動を許可する")
+  @Test("Allows Keep Awake mode with a valid lease and safe conditions")
   func active() {
     #expect(LeasePolicy.evaluate(inputs()) == .active)
   }
 
-  @Test("ACが外れたら常時起動を拒否する")
+  @Test("Rejects Keep Awake mode without external power")
   func battery() {
     #expect(LeasePolicy.evaluate(inputs(acConnected: false)) == .batteryPower)
   }
 
-  @Test("重大な熱状態では常時起動を拒否する")
+  @Test("Rejects a serious thermal state")
   func thermal() {
     #expect(LeasePolicy.evaluate(inputs(thermalLevel: .serious)) == .thermalPressure)
   }
 
-  @Test("期限切れleaseを拒否する")
+  @Test("Rejects an expired lease")
   func expired() {
     let lease = LeaseRecord(
       enabled: true,
@@ -33,7 +33,7 @@ struct LeasePolicyTests {
     #expect(LeasePolicy.evaluate(inputs(lease: lease)) == .leaseExpired)
   }
 
-  @Test("leaseがなければ拒否する")
+  @Test("Rejects a missing lease")
   func missing() {
     let input = LeaseInputs(
       lease: nil,
@@ -46,7 +46,7 @@ struct LeasePolicyTests {
     #expect(LeasePolicy.evaluate(input) == .leaseMissing)
   }
 
-  @Test("未知のschemaを拒否する")
+  @Test("Rejects an unknown lease schema")
   func invalidSchema() {
     let lease = LeaseRecord(
       schemaVersion: 2,
@@ -58,7 +58,7 @@ struct LeasePolicyTests {
     #expect(LeasePolicy.evaluate(inputs(lease: lease)) == .invalidLease)
   }
 
-  @Test("未来時刻のleaseを拒否する")
+  @Test("Rejects a future-dated lease")
   func futureLease() {
     let lease = LeaseRecord(
       enabled: true,
@@ -69,7 +69,7 @@ struct LeasePolicyTests {
     #expect(LeasePolicy.evaluate(inputs(lease: lease)) == .leaseExpired)
   }
 
-  @Test("lease期限の境界値は有効")
+  @Test("Accepts the exact lease-expiry boundary")
   func expiryBoundary() {
     let lease = LeaseRecord(
       enabled: true,
@@ -80,18 +80,18 @@ struct LeasePolicyTests {
     #expect(LeasePolicy.evaluate(inputs(lease: lease)) == .active)
   }
 
-  @Test("criticalの熱状態では常時起動を拒否する")
+  @Test("Rejects a critical thermal state")
   func criticalThermal() {
     #expect(LeasePolicy.evaluate(inputs(thermalLevel: .critical)) == .thermalPressure)
   }
 
-  @Test("fairとunknownはmacOSの危険判定ではない")
+  @Test("Treats fair and unknown as noncritical macOS thermal states")
   func nonCriticalThermalLevels() {
     #expect(LeasePolicy.evaluate(inputs(thermalLevel: .fair)) == .active)
     #expect(LeasePolicy.evaluate(inputs(thermalLevel: .unknown)) == .active)
   }
 
-  @Test("複数異常ではleaseの検証を電源・熱より先に行う")
+  @Test("Evaluates lease validity before power and thermal conditions")
   func failurePrecedence() {
     let lease = LeaseRecord(
       enabled: false,
@@ -106,17 +106,17 @@ struct LeasePolicyTests {
     )
   }
 
-  @Test("owner processが終了したleaseを拒否する")
+  @Test("Rejects a lease whose owner process has exited")
   func deadOwner() {
     #expect(LeasePolicy.evaluate(inputs(ownerIsRunning: false)) == .ownerNotRunning)
   }
 
-  @Test("owner executableが一致しないleaseを拒否する")
+  @Test("Rejects a lease whose owner executable does not match")
   func mismatchedOwner() {
     #expect(LeasePolicy.evaluate(inputs(ownerMatches: false)) == .ownerMismatch)
   }
 
-  @Test("無効化されたleaseを拒否する")
+  @Test("Rejects a disabled lease")
   func disabled() {
     let lease = LeaseRecord(
       enabled: false,
@@ -153,7 +153,7 @@ struct LeasePolicyTests {
 
 @Suite("PowerSettingParser")
 struct PowerSettingParserTests {
-  @Test("pmset -gのSleepDisabled有効値を読む")
+  @Test("Parses an enabled SleepDisabled value from pmset -g")
   func enabled() {
     let output = """
       System-wide power settings:
@@ -164,22 +164,22 @@ struct PowerSettingParserTests {
     #expect(PowerSettingParser.sleepDisabled(fromPMSetOutput: output) == true)
   }
 
-  @Test("pmset -gのSleepDisabled無効値を読む")
+  @Test("Parses a disabled SleepDisabled value from pmset -g")
   func disabled() {
     #expect(PowerSettingParser.sleepDisabled(fromPMSetOutput: " SleepDisabled 0\n") == false)
   }
 
-  @Test("SleepDisabledがなければ不明として扱う")
+  @Test("Returns unknown when SleepDisabled is absent")
   func missing() {
     #expect(PowerSettingParser.sleepDisabled(fromPMSetOutput: " sleep 1\n") == nil)
   }
 
-  @Test("値が0または1以外なら不明として扱う")
+  @Test("Returns unknown for a value other than zero or one")
   func invalidValue() {
     #expect(PowerSettingParser.sleepDisabled(fromPMSetOutput: "SleepDisabled 2\n") == nil)
   }
 
-  @Test("似た名前の設定を誤認しない")
+  @Test("Does not confuse a similarly named setting")
   func similarName() {
     #expect(PowerSettingParser.sleepDisabled(fromPMSetOutput: "TCPKeepAliveDuringSleep 1\n") == nil)
   }
@@ -189,7 +189,7 @@ struct PowerSettingParserTests {
 struct LeaseFreshnessTests {
   private let now = Date(timeIntervalSince1970: 1_000)
 
-  @Test("現在時刻と期限境界はfresh")
+  @Test("Treats current time and the expiry boundary as fresh")
   func boundaries() {
     #expect(LeaseFreshness.isFresh(updatedAt: now, now: now))
     #expect(
@@ -200,7 +200,7 @@ struct LeaseFreshnessTests {
     )
   }
 
-  @Test("期限超過と未来時刻はfreshではない")
+  @Test("Rejects an expired or future timestamp as not fresh")
   func rejectedTimes() {
     #expect(
       !LeaseFreshness.isFresh(
@@ -214,14 +214,14 @@ struct LeaseFreshnessTests {
 
 @Suite("SleepTransitionTracker")
 struct SleepTransitionTrackerTests {
-  @Test("初期状態では安全側を含む実状態確認を省略しない")
+  @Test("Requires a transition from unknown even toward the safe state")
   func unknownRequiresTransition() {
     let tracker = SleepTransitionTracker()
     #expect(tracker.requiresTransition(to: false))
     #expect(tracker.requiresTransition(to: true))
   }
 
-  @Test("成功した状態への重複遷移を省略する")
+  @Test("Skips a duplicate transition to a verified state")
   func successIsRemembered() {
     var tracker = SleepTransitionTracker()
     tracker.record(desiredState: true, succeeded: true)
@@ -230,7 +230,7 @@ struct SleepTransitionTrackerTests {
     #expect(tracker.requiresTransition(to: false))
   }
 
-  @Test("失敗後は安全側遷移を必ず再試行する")
+  @Test("Retries a safe transition after failure")
   func failureForgetsPriorState() {
     var tracker = SleepTransitionTracker(appliedState: true)
     tracker.record(desiredState: false, succeeded: false)

@@ -1,65 +1,66 @@
 # Architecture
 
-## 目的
+## Purpose
 
-ユーザーがアプリを起動し、1つの大きなボタンで常時起動を開始・終了できることを目的とします。
-常時起動はアプリの生存期間に限定し、設定をOSへ放置しません。
+Lid Awake provides a single-window, one-button control for keeping a MacBook running with its lid closed. Keep Awake mode is limited to the GUI app's lifetime and must not leave a persistent system setting behind.
 
-## コンポーネント
+## Components
 
 1. `LidAwakeApp`
-   - SwiftUIの単一ウィンドウです。
-   - 10秒ごとに`0600`のleaseを更新します。
-   - helperの実状態を読み、確認後にだけ赤の「常時起動中」を表示します。
+   - A single SwiftUI window.
+   - Refreshes a `0600` lease every 10 seconds.
+   - Displays the red active state only after reading a verified helper status.
+   - Uses English as the fallback UI language and ships complete English and Japanese resources.
 2. `LidAwakeHelper`
-   - rootのLaunchDaemonです。
-   - lease、owner PID、AC、thermal stateを3秒ごとに評価します。
-   - 状態遷移時だけ`pmset -a disablesleep 1|0`を実行します。
-   - `pmset`は5秒でtimeoutし、適用後の実状態が一致した場合だけ遷移成功とします。
+   - A root LaunchDaemon.
+   - Evaluates the lease, owner PID, AC power, and thermal state every three seconds.
+   - Runs `pmset -a disablesleep 1|0` only when the desired state changes or the previous transition failed.
+   - Applies a five-second timeout and accepts success only when the observed system state matches.
 3. `LidAwakeShared`
-   - lease、status、純粋な安全判定を所有します。
+   - Owns lease and status models, pure safety policy, transition tracking, secure JSON files, process execution, and installer command construction.
 
-## 状態所有
+## State ownership
 
-- UI表示の正本はhelperの`status.json`です。
-- 常時起動要求の正本はアプリが更新する`lease.json`です。
-- 実際のスリープ阻止の正本はmacOSの`pmset`です。
-- 適用確認は`pmset -g`の`SleepDisabled`を読みます。`pmset -g custom`にはこの値が出ないため使用しません。
-- UIのローカルなboolだけで「常時起動中」を名乗りません。
+- `status.json`, written by the helper, is the source of truth for the GUI state.
+- `lease.json`, refreshed by the GUI, is the source of truth for the user's active request.
+- macOS `pmset` is the source of truth for actual sleep blocking.
+- Verification reads `SleepDisabled` from `pmset -g`. `pmset -g custom` is not used because it does not expose that value.
+- A GUI-local Boolean is never sufficient to claim that Keep Awake mode is active.
 
-## Failure mode
+## Failure modes
 
-| Failure | 応答 |
+| Failure | Response |
 |---|---|
-| アプリ正常終了 | disabled leaseを書き、helperが解除 |
-| アプリ強制終了・クラッシュ | 30秒でlease期限切れ、helperが解除 |
-| AC切断 | 3秒以内にhelperが解除 |
-| thermal state serious/critical | 3秒以内にhelperが解除 |
-| helper再起動 | 起動直後に解除してからfresh leaseを再評価 |
-| Mac再起動 | 過去のleaseはowner不在で拒否し、通常モード |
-| status stale | UIは赤表示を継続せずエラー表示 |
-| `pmset`適用・確認失敗 | 状態を不明に戻し、次の安全側遷移で必ず`disablesleep 0`を再実行 |
-| `pmset`が5秒以内に終了しない | processを終了し、適用失敗として上と同じ安全側遷移へ移る |
+| Normal app termination | Write a disabled lease; the helper releases sleep blocking |
+| Force quit or crash | Expire the lease after 30 seconds; the helper releases sleep blocking |
+| External power disconnect | Release within the three-second helper polling interval |
+| `serious` or `critical` thermal state | Release within the three-second helper polling interval |
+| Helper restart | Release immediately, then reevaluate only a fresh lease |
+| Mac restart | Reject the old lease because its owner is absent; remain in Normal Mode |
+| Stale status | Stop displaying the red active state and show an error |
+| `pmset` apply or verification failure | Forget the applied state so the next safe transition must retry `disablesleep 0` |
+| `pmset` does not exit within five seconds | Terminate the process and follow the same safe-retry path |
 
-## Privileged install
+## Privileged installation
 
-GUIは管理者認証を要求する前にbundle内のhelperとLaunchDaemon plistのSHA-256を計算します。root shellは
-両fileをroot所有の`/var/tmp/lid-awake-install.*`へstageし、digest一致後にだけ既存helperを停止して
-`/Library`配下を更新します。source pathからsystem pathへ直接copyしません。stagingは成功・失敗・signalの
-いずれでも個別fileを削除してdirectoryを除去します。
+Before requesting administrator approval, the GUI calculates SHA-256 digests for the helper and LaunchDaemon plist embedded in the app bundle. The root shell copies both files into a root-owned `/var/tmp/lid-awake-install.*` directory and verifies their digests before stopping the existing helper or changing `/Library` paths. It removes each staged file and the staging directory after success, failure, or a handled signal.
 
-これはuser writableなsourceが認証後に差し替えられるTOCTOUを縮小しますが、Appleの正式な
-`SMAppService`とcode-signing requirementによるcaller認証の代替ではありません。配布binaryを出す前の
-残作業は[release checklist](RELEASE_CHECKLIST.md)を正本とします。
+This design narrows the time-of-check/time-of-use risk from a user-writable source path. It does not replace Apple's `SMAppService` or code-signing-requirement-based caller verification. The [release checklist](RELEASE_CHECKLIST.md) is authoritative for binary distribution work.
 
-helperの安全契約を変えたreleaseではstatus schemaを更新します。旧helperのstatusを新appが受理せず、次回開始時に
-管理者認証を伴う再installへ進めるためです。
+When a release changes the helper safety contract, it increments the helper status schema. A new GUI then rejects old helper status and requests an administrator-authorized reinstall on the next start attempt.
+
+## Localization ownership
+
+- `Resources/en.lproj/Localizable.strings` is the fallback and canonical UI copy.
+- `Resources/ja.lproj/Localizable.strings` is the Japanese translation.
+- Both files must have identical keys and format placeholders.
+- Repository policy and technical documentation are canonical in English. `README.ja.md` is the Japanese entry point, not a second technical source of truth.
 
 ## Non-goals
 
-- Wi-FiやOpenAIサービスの可用性保証
-- FileVaultログインの自動化
-- App Store配布
-- Developer ID署名・notarize前のbinary配布
-- 自動ログインや画面ロックの回避
-- バッテリー駆動での蓋閉じ常時起動
+- Wi-Fi or OpenAI service availability
+- FileVault login automation
+- App Store distribution
+- Binary distribution before Developer ID signing and notarization
+- Automatic login or lock-screen bypass
+- Closed-lid operation on battery power

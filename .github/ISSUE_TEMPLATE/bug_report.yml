@@ -1,47 +1,47 @@
 name: Bug report
-description: 再現可能な不具合を報告します
+description: Report a reproducible defect
 title: "[Bug]: "
 labels: [bug]
 body:
   - type: markdown
     attributes:
-      value: credential、端末名、ユーザー名、ChatGPTの会話内容を記載しないでください。脆弱性はSECURITY.mdの非公開経路へ報告してください。
+      value: Do not include credentials, device names, user names, or ChatGPT conversation content. Report vulnerabilities through the private channel in SECURITY.md.
   - type: input
     id: commit
     attributes:
-      label: Commitまたはversion
-      description: `git rev-parse HEAD`の値、またはversionを記載してください。
+      label: Commit or version
+      description: Provide the output of `git rev-parse HEAD` or the app version.
     validations:
       required: true
   - type: input
     id: environment
     attributes:
-      label: 環境
-      description: macOS version、Macのchip、AC接続状態を記載してください。
+      label: Environment
+      description: Provide the macOS version, Mac chip, and external-power state.
     validations:
       required: true
   - type: textarea
     id: reproduction
     attributes:
-      label: 再現手順
+      label: Reproduction steps
     validations:
       required: true
   - type: textarea
     id: expected
     attributes:
-      label: 期待結果
+      label: Expected result
     validations:
       required: true
   - type: textarea
     id: actual
     attributes:
-      label: 実際の結果
+      label: Actual result
     validations:
       required: true
   - type: checkboxes
     id: safety
     attributes:
-      label: 安全確認
+      label: Safety check
       options:
-        - label: 通常モード時の`SleepDisabled`を確認しました
+        - label: I verified `SleepDisabled` while Lid Awake was in Normal Mode
           required: true

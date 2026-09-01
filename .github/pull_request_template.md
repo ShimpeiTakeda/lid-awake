@@ -1,12 +1,12 @@
-## 目的
+## Purpose
 
-## 利用者向け挙動への影響
+## User-visible behavior
 
-## 権限・安全条件への影響
+## Privilege and safety impact
 
-## 検証
+## Verification
 
 - [ ] `./scripts/check.sh`
-- [ ] failure modeと安全側への復帰をtestした
-- [ ] secret、local artifact、生成物を含めていない
-- [ ] 必要なdocsと脅威モデルを更新した
+- [ ] Tested the failure mode and safe recovery
+- [ ] Included no secrets, local artifacts, or generated output
+- [ ] Updated the relevant documentation and threat model

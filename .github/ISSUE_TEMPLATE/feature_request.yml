@@ -1,0 +1,35 @@
+name: Feature request
+description: Propose a change that preserves the safety contract
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: Lid Awake intentionally has a narrow scope. Explain the user problem before proposing implementation.
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      description: Who is blocked, in what situation, and what happens today?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Describe the observable result without prescribing architecture.
+    validations:
+      required: true
+  - type: textarea
+    id: safety
+    attributes:
+      label: Safety and privilege impact
+      description: Explain any effect on AC-only operation, lease expiry, thermal stops, root privileges, or recovery.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: true

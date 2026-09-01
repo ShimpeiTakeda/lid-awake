@@ -1,16 +1,14 @@
 # Contributing
 
-## 変更方針
+## Change policy
 
-Lid Awakeは「AC接続中だけ」「アプリの生存期間だけ」「1つのボタンで開始・終了」という小さい挙動契約を
-維持します。機能追加よりfail-safe、権限境界、復旧可能性を優先します。
+Lid Awake preserves a deliberately small behavior contract: external power only, app-lifetime only, and one-button start and stop. Fail-safe behavior, privilege boundaries, and recovery take priority over feature growth.
 
-Issueを先に作成し、変更目的、利用者への影響、権限や安全条件への影響を説明してください。秘密情報、端末名、
-ユーザー名、ChatGPTの会話内容をIssueやtest fixtureへ含めないでください。
+Open an issue before implementation. Explain the purpose, user-visible effect, and impact on permissions or safety conditions. Never include credentials, device names, user names, or ChatGPT conversation content in issues or test fixtures.
 
-## 開発環境
+## Development environment
 
-- macOS 14以降
+- macOS 14 or later
 - Swift 6
 - Xcode Command Line Tools
 
@@ -20,16 +18,19 @@ cd lid-awake
 ./scripts/check.sh
 ```
 
-## Pull Request gate
+## Language policy
 
-- public APIや利用者向け挙動を変える場合、Issueで合意した理由をPRへ記載します。
-- failure modeを追加・変更した場合、成功系だけでなく安全側への復帰testを追加します。
-- root helper、install command、`pmset`、lease、file permissionの変更は
-  [脅威モデル](docs/THREAT_MODEL.md)も更新します。
-- `./scripts/check.sh`をpassさせます。
-- 実機確認を行った場合だけ、そのcommitと条件をPRへ記載します。過去の実測を新しいcommitの証拠にしません。
-- 生成物、署名情報、credential、local status/leaseをcommitしません。
+English is canonical for code comments, test names, repository documentation, issue templates, and contributor communication. The app currently supports complete English and Japanese UI resources. Update both localization files in the same pull request; missing or mismatched keys fail CI.
 
-## Commit
+## Pull request gate
 
-1つのcommitへ無関係な変更を混ぜません。署名・notarize・release作成はmaintainerだけが行います。
+- Explain any public API or user-visible behavior change in an agreed issue.
+- Add both success and safe-recovery tests for every new or changed failure mode.
+- Update the [threat model](docs/THREAT_MODEL.md) for changes to the root helper, installer, `pmset`, lease, status, or file permissions.
+- Pass `./scripts/check.sh`.
+- Claim physical-device verification only when it was performed on the exact commit and conditions documented in the pull request.
+- Do not commit generated artifacts, signing material, credentials, local status files, or local lease files.
+
+## Commits and releases
+
+Do not mix unrelated changes in one commit. Only the maintainer may sign, notarize, or publish a release.

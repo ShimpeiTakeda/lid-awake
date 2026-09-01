@@ -9,8 +9,9 @@ enum PrivilegedInstaller {
 
     var errorDescription: String? {
       switch self {
-      case .resourceMissing(let name): "必要なファイルが見つかりません: \(name)"
-      case .authorizationFailed(let message): "管理者認証に失敗しました: \(message)"
+      case .resourceMissing(let name): L10n.format("installer.resource_missing_format", name)
+      case .authorizationFailed(let message):
+        L10n.format("installer.authorization_failed_format", message)
       }
     }
   }

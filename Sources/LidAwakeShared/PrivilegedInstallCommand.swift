@@ -61,7 +61,7 @@ public struct PrivilegedInstallCommand: Equatable, Sendable {
     case invalidSHA256
 
     public var errorDescription: String? {
-      "install対象のSHA-256が不正です"
+      "The install artifact SHA-256 is invalid"
     }
   }
 

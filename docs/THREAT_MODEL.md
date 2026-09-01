@@ -1,51 +1,50 @@
-# 脅威モデル
+# Threat Model
 
 ## Scope
 
-Lid Awakeは、ログイン済みユーザーが明示操作した間だけ、電源接続中のMacBookで蓋閉じスリープを阻止します。
-macOSの認証、画面ロック、FileVault、ネットワーク、ChatGPTの認証や可用性は変更しません。
+Lid Awake blocks closed-lid sleep only while a logged-in user explicitly enables it on an AC-powered MacBook. It does not change macOS authentication, the lock screen, FileVault, networking, ChatGPT authentication, or service availability.
 
-## 保護対象
+## Assets
 
-- macOSの通常のsleep設定へ確実に戻れること
-- root helperが固定された操作以外を実行しないこと
-- helper install時に検証したbinaryと実際にinstallするbinaryが一致すること
-- local user以外がlease/statusを書き換えられないこと
-- credential、会話内容、telemetryを収集しないこと
+- Reliable restoration of the normal macOS sleep setting
+- A root helper restricted to fixed operations
+- Equality between the helper verified during installation and the helper installed on disk
+- Lease and status files that other user accounts cannot modify
+- No collection of credentials, conversation content, or telemetry
 
-## Trust boundary
+## Trust boundaries
 
-| 境界 | 信頼するもの | 信頼しないもの |
+| Boundary | Trusted | Rejected or untrusted |
 |---|---|---|
-| GUI → lease | ログイン済みユーザー、`0600` file | stale、malformed、未来時刻のlease |
-| helper → owner process | 生存PIDと`LidAwakeApp` executable path | PID再利用、異なるexecutable |
-| install | 実行中appが計算したSHA-256、root staging | 管理者認証後もuser writableなsource path |
-| helper → macOS | 絶対pathの`/usr/bin/pmset` | PATH探索、任意command、無期限停止 |
+| GUI to lease | Logged-in user and a `0600` regular file | Stale, malformed, future-dated, or incorrectly owned lease |
+| Helper to owner process | Live PID and `LidAwakeApp` executable path | PID reuse and a different executable |
+| Installation | SHA-256 calculated by the running app and root-owned staging | A user-writable source path after administrator approval |
+| Helper to macOS | Absolute `/usr/bin/pmset` path | PATH lookup, arbitrary commands, and unbounded execution |
 
-## Threatと対策
+## Threats and mitigations
 
-| Threat | 対策 | 残余リスク |
+| Threat | Mitigation | Residual risk |
 |---|---|---|
-| app crash後もsleep阻止が残る | 10秒heartbeat、30秒expiry、owner PID確認 | root helper自体が停止すると解除処理を実行できない |
-| AC切断・thermal pressure | helperが3秒周期で独立判定し`disablesleep 0` | OS/hardwareが状態を通知しない故障 |
-| install時のhelper差し替え | root staging後にSHA-256を再検証してからinstall | 既に実行中app processが侵害されている場合 |
-| shell injection | pathのPOSIX quote、digestのlowercase hex検証、固定command | AppleScript shell経由という設計自体の複雑性 |
-| `pmset` hang | 5秒timeout後にTERM、必要ならKILL | helper crashと同様、最後のOS設定は残り得る |
-| lease偽装 | regular file、owner UID、`0600`、schema、freshness、PID、pathを検証 | 同一ログインユーザー権限を既に奪ったprocessを完全には排除しない |
-| 偽バイナリ配布 | 公式binaryを現時点で配布しない | 利用者が第三者binaryを信頼する危険 |
+| Sleep blocking remains after an app crash | 10-second heartbeat, 30-second expiry, owner PID validation | A stopped root helper cannot execute the release command |
+| External power disconnect or thermal pressure | Independent three-second helper evaluation and `disablesleep 0` | OS or hardware fails to report the condition |
+| Helper replacement during install | Copy to root staging and verify SHA-256 before install | The already-running GUI process is compromised |
+| Shell injection | POSIX path quoting, lowercase-hex digest validation, fixed commands | AppleScript shell elevation remains a complex boundary |
+| `pmset` hangs | Five-second timeout, then TERM and KILL if required | As with a helper crash, the last OS setting may remain |
+| Forged lease | Regular-file, owner UID, `0600`, schema, freshness, PID, and path checks | A process that already controls the same user account cannot be fully excluded |
+| Fake binary distribution | Do not distribute an official binary yet | A user may trust an unrelated third-party binary |
+| Translation changes a safety instruction | English fallback, exact key and placeholder parity, label budgets, English canonical docs | A semantically poor translation can still pass structural tests |
 
-## Public sourceとbinary distribution
+## Public source and binary distribution
 
-source codeの公開と、実行バイナリの安全な配布は別問題です。source repositoryはCI、test、license、security policyを
-満たして公開できます。一方、配布binaryはDeveloper ID署名、hardened runtime、notarization、stapling、clean machineでの
-install/uninstall試験が完了するまでreleaseしません。
+Publishing source code and safely distributing an executable are separate decisions. The source repository can be published after CI, policy, license, security documentation, localization, and owner review gates pass. A binary cannot be released until Developer ID signing, hardened runtime, notarization, stapling, and clean-machine install and uninstall tests are complete.
 
 ## Security regression gate
 
-次の変更は脅威モデルの再reviewを必須とします。
+Re-review this threat model for any change to:
 
-- helperの権限、install方式、LaunchDaemon plist
-- lease/statusのschema、owner検証、permission
-- `pmset` command、timeout、signal handling
-- network、telemetry、自動更新の追加
-- binary signing、notarization、release workflow
+- helper privileges, installation method, or LaunchDaemon plist
+- lease or status schema, owner validation, or permissions
+- `pmset` invocation, timeout, or signal handling
+- localization of safety and recovery instructions
+- network access, telemetry, or automatic updates
+- signing, notarization, or release workflow

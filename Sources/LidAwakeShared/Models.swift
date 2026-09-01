@@ -9,7 +9,7 @@ public enum AppConstants {
   public static let heartbeatInterval: TimeInterval = 10
   public static let helperPollInterval: TimeInterval = 3
   public static let commandTimeout: TimeInterval = 5
-  public static let helperStatusSchemaVersion = 3
+  public static let helperStatusSchemaVersion = 4
 }
 
 public struct LeaseRecord: Codable, Equatable, Sendable {
@@ -59,6 +59,24 @@ public enum BlockReason: String, Codable, Sendable {
   case helperError
 }
 
+public struct HelperFailure: Codable, Equatable, Sendable {
+  public enum Code: String, Codable, Sendable {
+    case commandFailed
+    case commandTimedOut
+    case stateUnreadable
+    case stateMismatch
+    case executionFailed
+  }
+
+  public let code: Code
+  public let exitStatus: Int32?
+
+  public init(code: Code, exitStatus: Int32? = nil) {
+    self.code = code
+    self.exitStatus = exitStatus
+  }
+}
+
 public struct HelperStatus: Codable, Equatable, Sendable {
   public let schemaVersion: Int
   public let isBlockingSleep: Bool
@@ -67,6 +85,7 @@ public struct HelperStatus: Codable, Equatable, Sendable {
   public let thermalLevel: ThermalLevel
   public let leaseFresh: Bool
   public let updatedAt: Date
+  public let failure: HelperFailure?
   public let detail: String?
 
   public init(
@@ -77,6 +96,7 @@ public struct HelperStatus: Codable, Equatable, Sendable {
     thermalLevel: ThermalLevel,
     leaseFresh: Bool,
     updatedAt: Date,
+    failure: HelperFailure? = nil,
     detail: String? = nil
   ) {
     self.schemaVersion = schemaVersion
@@ -86,6 +106,7 @@ public struct HelperStatus: Codable, Equatable, Sendable {
     self.thermalLevel = thermalLevel
     self.leaseFresh = leaseFresh
     self.updatedAt = updatedAt
+    self.failure = failure
     self.detail = detail
   }
 }
@@ -152,8 +173,8 @@ public enum LeaseFreshness {
   }
 }
 
-/// helperが最後に確認できた`SleepDisabled`の状態を追跡します。
-/// 適用または確認に失敗した場合は状態を不明に戻し、安全側への再試行を省略しません。
+/// Tracks the last `SleepDisabled` state verified by the helper.
+/// A failed apply or verification returns the state to unknown so a safe retry is never skipped.
 public struct SleepTransitionTracker: Equatable, Sendable {
   public private(set) var appliedState: Bool?
 
